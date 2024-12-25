@@ -19,16 +19,16 @@ with left:
 
 with middle:
     st.markdown("<b style='text-align: center; color: white;'>🤓 Dico pour les pros 🤓</b>", unsafe_allow_html=True)
-    st.caption("zueihrfjoi")
+    st.caption("kestceke ça veut dire")
     if st.button("Commencer", type="primary", key="dico_button"):
        st.balloons() 
-       st.switch_page("pages/page_lecons.py")
+       st.switch_page("pages/page_dico.py")
 
 with right:
     st.markdown("<b style='text-align: center; color: white;'>🤓 Quizz of champions 🤓</b>", unsafe_allow_html=True)
     st.caption("Toi contre le monde 🌍")
     if st.button("Commencer", type="primary", key="quizz_button"):
         st.balloons() 
-        st.switch_page("pages/page_lecons.py")
+        st.switch_page("pages/page_quizz.py")
 
     

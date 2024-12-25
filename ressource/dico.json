@@ -1,0 +1,72 @@
+{
+    "mli7": {
+        "traduction": "bien",
+        "type": "adjectif",
+        "genre": "masculin"
+    },
+    "mli7a": {
+        "traduction": "bien",
+        "type": "adjectif",
+        "genre": "feminin"
+    },
+    "barcha": {
+        "traduction": "beaucoup",
+        "type": "adverbe",
+        "genre": "neutre"
+    },
+    "karhba": {
+        "traduction": "voiture",
+        "type": "nom",
+        "genre": "feminin"
+    },
+    "mcha": {
+        "traduction": "marcher",
+        "type": "verbe",
+        "genre": "neutre"
+    },
+    "sghir": {
+        "traduction": "petit",
+        "type": "adjectif",
+        "genre": "masculin"
+    },
+    "sghira": {
+        "traduction": "petite",
+        "type": "adjectif",
+        "genre": "feminin"
+    },
+    "dar": {
+        "traduction": "maison",
+        "type": "nom",
+        "genre": "feminin"
+    },
+    "tawla": {
+        "traduction": "table",
+        "type": "nom",
+        "genre": "feminin"
+    },
+    "kteb": {
+        "traduction": "livre",
+        "type": "nom",
+        "genre": "masculin"
+    },
+    "yekl": {
+        "traduction": "manger",
+        "type": "verbe",
+        "genre": "neutre"
+    },
+    "yemchi": {
+        "traduction": "marcher",
+        "type": "verbe",
+        "genre": "neutre"
+    },
+    "behia": {
+        "traduction": "belle",
+        "type": "adjectif",
+        "genre": "feminin"
+    },
+    "behi": {
+        "traduction": "beau",
+        "type": "adjectif",
+        "genre": "masculin"
+    }
+}

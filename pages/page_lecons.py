@@ -4,7 +4,17 @@ import pandas as pd
 import streamlit as st
 
 # Titre de l'application
-st.title("La leçon ennuyeuse !")
+st.title("👩‍🏫 - La leçon ennuyeuse !")
+# Ajout d'informations sur l'utilisation
+with st.sidebar:
+    if st.button("Retour à l'accueil 🏚️", type="secondary", key="lecons_button"):
+       st.switch_page("streamlit_app.py")
+    with st.expander("**Liste des cours ** ", True):
+        st.markdown("""
+        1. Choisissez l'onglet selon la langue de recherche
+        2. Tapez le mot ou une partie du mot
+        3. Les résultats s'afficheront automatiquement
+        """)
 
 # Introduction
 st.write("""

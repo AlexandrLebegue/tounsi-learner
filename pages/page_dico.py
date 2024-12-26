@@ -1,6 +1,20 @@
 import streamlit as st
 import json
 from difflib import SequenceMatcher
+from pages import menu_sidebar
+
+menu_sidebar.show_menu()
+
+# Ajout d'informations sur l'utilisation
+with st.sidebar:
+    st.divider()
+    with st.expander("**Utilisation** ⚙️", True):
+        st.markdown("""
+        1. Choisissez l'onglet selon la langue de recherche
+        2. Tapez le mot ou une partie du mot
+        3. Les résultats s'afficheront automatiquement
+        """)
+
 
 def charger_dictionnaire(chemin_fichier):
     """
@@ -62,9 +76,6 @@ def rechercher_mot(dictionnaire, recherche, mode='arabe'):
     
     return resultats
 
-# Configuration de la page Streamlit
-st.set_page_config(page_title="Dictionnaire Français-Tunisien")
-
 st.title("🔍 Dictionnaire Français-Tunisien")
 
 # Chargement du dictionnaire
@@ -102,13 +113,3 @@ with tab1:
         else:
             st.warning("Aucun résultat trouvé")
 
-# Ajout d'informations sur l'utilisation
-with st.sidebar:
-    if st.button("Retour à l'accueil 🏚️", type="secondary", key="lecons_button"):
-       st.switch_page("streamlit_app.py")
-    with st.expander("**Utilisation** ⚙️", True):
-        st.markdown("""
-        1. Choisissez l'onglet selon la langue de recherche
-        2. Tapez le mot ou une partie du mot
-        3. Les résultats s'afficheront automatiquement
-        """)

@@ -1,4 +1,5 @@
 streamlit
 bs4
 streamlit_javascript
+streamlit_antd_components 
 coolname

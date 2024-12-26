@@ -6,7 +6,7 @@ import time
 from coolname import generate_slug
 import random
 import json
-from datetime import datetime
+from streamlit.components.v1 import html
 
 
 # Configuration de la page
@@ -39,13 +39,37 @@ def charger_dictionnaire(chemin_fichier):
     
 #### Solo
 
+def create_countdown_timer():
+    timer_html = """
+        <div style="display: inline-block; color: white; font-size: 24px; font-weight: bold;" id="timer">60</div>
+        <script>
+            function startTimer() {
+                var timeLeft = 60;
+                var timerElement = document.getElementById('timer');
+                
+                var countdown = setInterval(function() {
+                    timeLeft--;
+                    timerElement.textContent = timeLeft + ' secondes';
+                    
+                    if (timeLeft <= 0) {
+                        clearInterval(countdown);
+                        window.parent.postMessage({type: 'streamlit:timer_finished'}, '*');
+                    }
+                }, 1000);
+            }
+            
+            startTimer();
+        </script>
+    """
+    return html(timer_html, height=50)
+
 # Fonction pour initialiser le jeu solo
 def initialize_solo_game():
     return {
-        'start_time': datetime.now(),  # Moment du début du jeu
-        'game_over': False,           # Indicateur si le jeu est terminé
-        'current_word': None,         # Le mot à deviner
-        'score': 0                    # Score initialisé à 0
+        'start_time': time.time(),  # Utiliser time.time() au lieu de datetime
+        'game_over': False,
+        'current_word': None,
+        'score': 0
     }
 
 # Fonction pour obtenir un mot aléatoire
@@ -55,35 +79,57 @@ def get_random_word(dico):
     else:
         st.error("Le dictionnaire est vide ou invalide.")
         return print(dico.keys())
-
-
-# Interface du jeu solo
+    
 def solo_game_board(session, dico):
-    # Affichage du mot arabe et saisie de la traduction
+    # Affichage du mot arabe
     arabic_word = session['current_word']
     st.markdown(f"### Mot en arabe: {arabic_word}")
-
-    # Générer une clé unique pour chaque saisie de traduction
-    input_key = f"word_input_{arabic_word}"
-
-    # Saisie de la traduction
-    translation = st.text_input("Traduisez ce mot en français:", key=input_key)
-
-    # Vérification de la traduction
-    if st.button("Valider", type="primary"):
-        correct_translation = dico[arabic_word]["traduction"]
-        if translation.lower() == correct_translation.lower():
-            session['score'] += 1
-            st.success("Bonne traduction ! 🎉")
-        else:
-            st.error(f"Mauvaise traduction ! La bonne réponse était: {correct_translation}")
-
-        # Choisir un nouveau mot après une réponse
-        session['current_word'] = get_random_word(dico)
-
-    # Affichage du score
-    st.markdown(f"### Score: {session['score']} points")
     
+    # Saisie de la traduction
+    translation = st.text_input("Traduisez ce mot en français:", key=f"word_input_{arabic_word}")
+    
+    # Créer deux colonnes pour les boutons et les messages
+    col1, col2 = st.columns([3, 7])
+    
+    # Ajout d'un état pour vérifier quel bouton a été cliqué
+    if 'button_clicked' not in session:
+        session['button_clicked'] = None
+    
+    # Vérification de la traduction
+    with col1:
+        if st.button("Valider", type="primary"):
+            correct_translation = dico[arabic_word]["traduction"]
+            if translation.lower() == correct_translation.lower():
+                session['score'] += 1
+                with col2:
+                    st.success("Bonne traduction ! ")
+            else:
+                session['score'] -= 2  # Réduire le score de 2 points en cas de mauvaise réponse
+                with col2:
+                    st.error(f"Mauvaise réponse ! La bonne traduction était: {correct_translation}")
+            session['current_word'] = get_random_word(dico)
+            session['button_clicked'] = "valider"
+    
+    # Créer deux nouvelles colonnes pour le bouton passer et son message
+    col3, col4 = st.columns([3, 7])
+    
+    # Bouton pour passer
+    with col3:
+        if st.button("Passer", type="secondary"):
+            with col4:
+                st.info(f"Le mot '{arabic_word}' signifiait: {dico[arabic_word]['traduction']}")
+            session['current_word'] = get_random_word(dico)
+            session['button_clicked'] = "passer"
+    
+    # Enlever le message de validation si le bouton "Passer" est cliqué
+    if session['button_clicked'] == "valider":
+        col4.empty()
+    
+    # Enlever le message de passer si le bouton "Valider" est cliqué
+    if session['button_clicked'] == "passer":
+        col2.empty()
+
+
 ##### Multijoueur
 
 # Initialisation du jeu
@@ -204,46 +250,47 @@ dico = charger_dictionnaire('ressource/dico.json')
 
 # Mode solo
 if option == "Solo":
-    if 'game_data' not in st.session_state:  # Vérifier si le jeu a déjà été initialisé
-        st.session_state.game_data = None   # Initialisation si nécessaire
-
-    # Affichage du bouton pour démarrer le jeu
-    if st.session_state.game_data is None:  # Le jeu n'est pas encore démarré
+    if 'game_data' not in st.session_state:
+        st.session_state.game_data = None
+        st.session_state.game_start_time = None
+    
+    # Si le jeu n'est pas commencé
+    if st.session_state.game_data is None:
         if st.button("Démarrer le jeu"):
-            # Initialisation du jeu solo
-            st.session_state.game_data = initialize_solo_game()  # Initialisation du jeu
-            st.session_state.game_data['current_word'] = get_random_word(dico)  # Choisir un mot aléatoire
-            st.rerun()  # Redémarrer pour afficher le jeu immédiatement
-
+            st.session_state.game_data = initialize_solo_game()
+            st.session_state.game_data['current_word'] = get_random_word(dico)
+            st.session_state.game_start_time = time.time()
+            st.rerun()
+    
     # Si le jeu est actif
     elif not st.session_state.game_data['game_over']:
-        session = st.session_state.game_data
-
-        # Vérifier si `start_time` est défini pour éviter les erreurs
-        if session.get('start_time') is not None:
-            elapsed_time = (datetime.now() - session['start_time']).total_seconds()
-            time_remaining = max(60 - int(elapsed_time), 0)
-
-            if time_remaining > 0:
-                # Afficher le temps restant
-                st.write(f"Temps restant : {time_remaining} secondes")
-                solo_game_board(session, dico)
-            else:
-                # Marquer la fin du jeu
-                st.write("Temps écoulé! 🏁")
-                st.session_state.game_data['game_over'] = True
-                st.rerun()  # Rafraîchir la page pour afficher la fin du jeu
+        # Header avec temps et score
+        col1, col2, col3 = st.columns([2, 1, 1])
+        
+        with col1:
+            st.write("### Temps restant: ", end='')
+            create_countdown_timer()
+        with col3:
+            st.markdown(f"### Score: {st.session_state.game_data['score']}")
+            
+        # Vérifier si le temps est écoulé (côté serveur)
+        elapsed_time = time.time() - st.session_state.game_start_time
+        if elapsed_time >= 60:
+            st.session_state.game_data['game_over'] = True
+            st.rerun()
         else:
-            st.write("Erreur : le jeu n'a pas été correctement initialisé.")
-
+            solo_game_board(st.session_state.game_data, dico)
+            time.sleep(0.1)
+            st.rerun()
+    
     # Si le jeu est terminé
     else:
-        st.write("Le jeu est terminé ! Cliquez pour rejouer.")
+        st.write("Temps écoulé! 🏁")
+        st.write(f"Score final: {st.session_state.game_data['score']} points")
         if st.button("Rejouer"):
             st.session_state.game_data = None
+            st.session_state.game_start_time = None
             st.rerun()
-        
-
 
 # Mode multijoueur : initialisation de la partie
 if option == "Multijoueur":

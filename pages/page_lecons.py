@@ -4,13 +4,161 @@ import streamlit_antd_components as sac
 import streamlit as st
 from pages import menu_sidebar
 import random
+
+st.session_state["current_page"] = "Leçons"
 menu_sidebar.show_menu()
 
-
-
 def load_prononciation():
-    st.write("La prononciation en tunisien se distingue par des sons spécifiques, comme les voyelles longues et certaines consonnes.")
-
+    st.write("# 🗣️ Guide de Prononciation Tunisienne")
+    
+    # Introduction
+    st.write("""
+    La prononciation tunisienne a ses particularités uniques! 
+    Découvrez comment maîtriser les sons spéciaux du dialecte tunisien.
+    """)
+    
+    # Sons spéciaux avec chiffres
+    st.write("## 🔢 Sons Spéciaux (Notation avec chiffres)")
+    special_sounds = {
+        'Chiffre': ['3', '7', '9', '5', '8'],
+        'Son': ['ع', 'ح', 'ق', 'خ', 'غ'],
+        'Description': [
+            'Son guttural "ain"',
+            'H fort du fond de la gorge',
+            'Q dur/profond',
+            'Comme la jota espagnole',
+            'R grasseyé/gargarisé'
+        ],
+        'Exemple': [
+            '3aslema (Bonjour)',
+            '7lowa (Belle/Bon)',
+            '9ahwa (Café)',
+            '5obz (Pain)',
+            '8ali (Cher)'
+        ]
+    }
+    st.dataframe(pd.DataFrame(special_sounds))
+    
+    # Section interactive des sons
+    st.write("## 🎯 Pratique des Sons")
+    son = st.selectbox(
+        "Choisissez un son à pratiquer:",
+        ["3 (ain)", "7 (H fort)", "9 (Q dur)", "5 (Kh)", "8 (Gh)"]
+    )
+    
+    # Afficher des exemples selon le son choisi
+    exemples_sons = {
+        "3 (ain)": {
+            "Mots simples": ["3ayn (œil)", "3sel (miel)", "3am (année)"],
+            "Conseil": "Imaginez faire le son 'a' en ouvrant bien la gorge"
+        },
+        "7 (H fort)": {
+            "Mots simples": ["7out (poisson)", "7lib (lait)", "7ar (épicé)"],
+            "Conseil": "Comme un H aspiré très fort, comme quand on souffle sur des lunettes"
+        },
+        "9 (Q dur)": {
+            "Mots simples": ["9alb (cœur)", "9rib (proche)", "9dim (ancien)"],
+            "Conseil": "Comme un K mais prononcé plus profondément dans la gorge"
+        },
+        "5 (Kh)": {
+            "Mots simples": ["5obz (pain)", "5ali (mon oncle)", "5ir (bien)"],
+            "Conseil": "Comme la jota espagnole dans 'Juan' ou le ch allemand dans 'Bach'"
+        },
+        "8 (Gh)": {
+            "Mots simples": ["8ali (cher)", "8ada (déjeuner)", "8ar (grotte)"],
+            "Conseil": "Comme un R grasseyé français mais plus guttural"
+        }
+    }
+    
+    st.write("### 📝 Exemples et conseils")
+    for mot in exemples_sons[son]["Mots simples"]:
+        st.write(f"• {mot}")
+    st.info(f"💡 Conseil: {exemples_sons[son]['Conseil']}")
+    
+    # Voyelles et diphtongues
+    st.write("## 🔤 Voyelles et Diphtongues")
+    vowels_data = {
+        'Son': ['a', 'i', 'ou', 'ay', 'aw'],
+        'Comme en français': [
+            'papa',
+            'lit',
+            'bout',
+            'aïe',
+            'au'
+        ],
+        'Exemple tunisien': [
+            'dar (maison)',
+            'bib (porte)',
+            'soug (marché)',
+            'zaytoun (olive)',
+            'mawjoud (présent)'
+        ]
+    }
+    st.dataframe(pd.DataFrame(vowels_data))
+    
+    # Section règles de prononciation
+    st.write("## 📚 Règles Principales")
+    rules = {
+        "Accentuation": """
+        - L'accent est généralement sur l'avant-dernière syllabe
+        - Les mots courts sont souvent accentués sur la première syllabe
+        """,
+        "Assimilation": """
+        - Le 'l' de l'article 'el' s'assimile aux lettres solaires
+        - Exemple: el + dar → ed-dar (la maison)
+        """,
+        "Élision": """
+        - Les voyelles courtes peuvent disparaître en parole rapide
+        - Exemple: ki(f) wash → kwash (comment)
+        """
+    }
+    
+    rule_choice = st.selectbox("Choisissez une règle:", list(rules.keys()))
+    st.write(rules[rule_choice])
+    
+    # Exercice pratique
+    st.write("## ✍️ Exercice de Prononciation")
+    phrases = [
+        "3aslema ya 7bibi",
+        "9ahwa bel 7lib",
+        "5obz w zaytoun",
+        "8ali barcha",
+        "Taw nemchiw lel soug"
+    ]
+    phrase = st.selectbox("Choisissez une phrase à pratiquer:", phrases)
+    
+    if st.button("Analyser la prononciation"):
+        st.write("### 🔍 Analyse par syllabe:")
+        # Exemple avec la première phrase
+        if phrase == "3aslema ya 7bibi":
+            st.write("""
+            1. **3as** - commencez par le son guttural '3'
+            2. **le** - syllabe simple
+            3. **ma** - syllabe finale ouverte
+            4. **ya** - liaison douce
+            5. **7bi** - attention au 'H' fort
+            6. **bi** - terminaison simple
+            """)
+    
+    # Conseils de pratique
+    st.write("## 💡 Conseils de pratique")
+    st.success("""
+    1. Écoutez beaucoup de tunisien (musique, films, séries)
+    2. Pratiquez les sons difficiles isolément
+    3. Enregistrez-vous pour comparer
+    4. Commencez par des mots courts
+    5. N'ayez pas peur de faire des erreurs!
+    """)
+    
+    # Variations régionales
+    st.write("## 🗺️ Variations Régionales")
+    with st.expander("Voir les variations"):
+        st.write("""
+        - **Tunis** : Prononciation plus "douce", influence française
+        - **Sfax** : Prononciation plus "dure", conservation des sons traditionnels
+        - **Sousse** : Entre les deux, plus mélodique
+        - **Sud** : Conservation de sons bédouins traditionnels
+        """)
 def load_conjugaison():
     # Section Conjugaison
     st.write("# 📖 Conjugaison")
@@ -45,8 +193,149 @@ def load_conjugaison():
             st.error("Oups, essaye encore ! 😅")
     
 def load_pronoms_personnels():
-    st.write("Les pronoms personnels en tunisien incluent : 'ana' (je), 'inta' (tu), 'houwa' (il), 'hiya' (elle), etc.")
+    st.write("# 👥 Les Pronoms Personnels")
+    
+    # Introduction
+    st.write("""
+    Les pronoms personnels sont essentiels dans le dialecte tunisien. 
+    Contrairement au français, ils sont presque toujours exprimés dans la phrase 
+    et ont quelques particularités intéressantes!
+    """)
+    
+    # Tableau principal des pronoms
+    st.write("## 📊 Tableau des Pronoms")
+    pronoms_data = {
+        'Pronom (FR)': ['Je', 'Tu (m)', 'Tu (f)', 'Il', 'Elle', 'Nous', 'Vous', 'Ils/Elles'],
+        'Pronom (TN)': ['Ana', 'Inti/Inta', 'Inti', 'Huwa', 'Hiya', '7na', 'Intuma', 'Huma'],
+        'Exemple': [
+            'Ana fi dar (Je suis à la maison)',
+            'Inti/Inta win? (Tu es où?)',
+            'Inti mchi3a? (Tu pars?)',
+            'Huwa yemchi (Il part)',
+            'Hiya temchi (Elle part)',
+            '7na mchina (Nous sommes partis)',
+            'Intuma win? (Vous êtes où?)',
+            'Huma yemchiw (Ils partent)'
+        ],
+        'Prononciation': [
+            'A-na',
+            'In-ti/In-ta',
+            'In-ti',
+            'Hou-wa',
+            'Hi-ya',
+            'H-na',
+            'In-tou-ma',
+            'Hou-ma'
+        ]
+    }
+    st.dataframe(pd.DataFrame(pronoms_data))
+    
+    # Section des formes possessives
+    st.write("## 🎯 Pronoms Possessifs")
+    possessifs_data = {
+        'Base': ['Mon/Ma', 'Ton/Ta', 'Son/Sa', 'Notre', 'Votre', 'Leur'],
+        'Suffixe': ['-i', '-ek', '-ou/-ha', '-na', '-kom', '-hom'],
+        'Exemple': [
+            'Dari (Ma maison)',
+            'Darek (Ta maison)',
+            'Darou/Darha (Sa maison)',
+            'Darna (Notre maison)',
+            'Darkom (Votre maison)',
+            'Darhom (Leur maison)'
+        ]
+    }
+    st.dataframe(pd.DataFrame(possessifs_data))
+    
+    # Section interactive
+    st.write("## 🎮 Pratique Interactive")
+    
+    # Choix de catégorie
+    categorie = st.radio(
+        "Choisissez une catégorie à pratiquer:",
+        ["Pronoms Sujets", "Pronoms Possessifs", "Combinaisons"]
+    )
+    
+    if categorie == "Pronoms Sujets":
+        st.write("### 🎯 Exercice: Complétez avec le bon pronom")
+        situations = {
+            "_____ mchi lel souk": "Qui va au marché?",
+            "_____ takel pizza": "Qui mange une pizza?",
+            "_____ te7ki français?": "Qui parle français?"
+        }
+        situation = st.selectbox("Choisissez une phrase à compléter:", list(situations.keys()))
+        reponse = st.text_input("Votre réponse:")
+        if st.button("Vérifier"):
+            st.write("💡 Plusieurs réponses sont possibles! Par exemple:")
+            pronoms_possibles = {
+                "Ana": "Je",
+                "Inti": "Tu",
+                "Huwa": "Il",
+                "Hiya": "Elle"
+            }
+            for pronom, trad in pronoms_possibles.items():
+                st.write(f"• {pronom} ({trad})")
 
+    elif categorie == "Pronoms Possessifs":
+        st.write("### 🏠 Exercice: Les possessions")
+        objets = ["dar (maison)", "kteb (livre)", "telephone", "sayara (voiture)"]
+        objet = st.selectbox("Choisissez un objet:", objets)
+        st.write("Comment dire 'mon/ma' + cet objet?")
+        if st.button("Voir la réponse"):
+            objet_base = objet.split(" ")[0]
+            st.success(f"{objet_base}i")
+            st.info("Ajoutez simplement 'i' à la fin du mot!")
+            
+    else:  # Combinaisons
+        st.write("### 🔄 Combinez les pronoms")
+        st.write("Comment combiner les pronoms dans une phrase?")
+        exemple = st.selectbox(
+            "Choisissez un exemple:",
+            [
+                "Ana w inti (Moi et toi)",
+                "7na w huma (Nous et eux)",
+                "Inti w huwa (Toi et lui)"
+            ]
+        )
+        if st.button("Plus d'explications"):
+            st.info("""
+            En tunisien, la combinaison de pronoms est simple:
+            - Utilisez 'w' (et) entre les pronoms
+            - L'ordre est souvent du plus proche au plus lointain
+            - Le verbe s'accorde avec le groupe entier
+            """)
+    
+    # Astuces et particularités
+    st.write("## 💡 Astuces importantes")
+    with st.expander("Voir les astuces"):
+        st.write("""
+        1. **Genre**: Le 'tu' a deux formes en tunisien (masculin/féminin)
+        2. **Usage**: Les pronoms sont rarement omis contrairement au français
+        3. **Position**: Le pronom vient généralement avant le verbe
+        4. **Politesse**: 'Intuma' peut être utilisé par politesse avec une personne
+        5. **Combinaison**: On peut combiner les pronoms avec 'w' (et)
+        """)
+    
+    # Section culturelle
+    st.write("## 🎭 Aspect Culturel")
+    st.info("""
+    Dans la culture tunisienne, l'usage des pronoms reflète le respect et la hiérarchie sociale:
+    - Les jeunes utilisent 'intuma' avec les aînés par respect
+    - Entre amis du même âge, on utilise 'inti/inta'
+    - Avec les personnes âgées, on peut ajouter '3ammi/khalti' (oncle/tante) avant le pronom
+    """)
+    
+    # Quiz final
+    st.write("## 🎯 Quiz Rapide")
+    if st.button("Commencer le quiz"):
+        questions = [
+            "Comment dit-on 'Je' en tunisien?",
+            "Quelle est la différence entre 'inti' et 'inta'?",
+            "Comment forme-t-on un possessif?",
+            "Comment dit-on 'leur maison'?"
+        ]
+        q = random.choice(questions)
+        st.write(f"Question: {q}")
+        st.text_input("Votre réponse:")
 def load_nombres():
     # Section Nombres
     st.write("# 🔢 Nombres ")
@@ -457,16 +746,190 @@ def load_expressions_courantes():
     else:
         st.write("🎭 Expert - Vous êtes un vrai Tunisien maintenant!")
 def load_formes_de_politesse():
-    st.write("Les formes de politesse incluent des expressions comme : 'afek' (s'il te plaît), 'barakallah fik' (merci beaucoup).")
-
+    st.write("# 🎭 Formes de Politesse en Tunisien")
+    
+    # Introduction
+    st.write("""
+    La politesse est un aspect fondamental de la culture tunisienne. 
+    Découvrez comment être poli et respectueux en dialecte tunisien!
+    """)
+    
+    # Salutations de base
+    st.write("## 👋 Salutations de Base")
+    salutations_data = {
+        'Situation': ['Matin', 'Après-midi', 'Soir', 'Général', 'Départ'],
+        'Expression': [
+            'Sbe7 el khir',
+            'Messa el khir',
+            'Tusbah 3ala khir',
+            'Aslema / Slem',
+            'Besslema'
+        ],
+        'Réponse': [
+            'Sbe7 ennour',
+            'Messa ennour',
+            'Winti men ahlou',
+            'Aslema / Slem',
+            'Allah yselmek'
+        ],
+        'Usage': [
+            'Le matin jusqu\'à 12h',
+            'De 12h au coucher du soleil',
+            'Avant d\'aller dormir',
+            'À tout moment',
+            'En partant'
+        ]
+    }
+    st.dataframe(pd.DataFrame(salutations_data))
+    
+    # Formules de respect
+    st.write("## 🙏 Formules de Respect")
+    respect_data = {
+        'Situation': [
+            'Personnes âgées',
+            'Parents',
+            'Professeurs',
+            'Inconnus',
+            'Commerçants'
+        ],
+        'Terme': [
+            '3ammi/khalti',
+            'Weldek/Bintek',
+            'Sidi/Lella',
+            'Si/Siti',
+            'Haj/Haja'
+        ],
+        'Utilisation': [
+            'Pour s\'adresser aux personnes âgées (oncle/tante)',
+            'Pour montrer du respect aux parents d\'autres',
+            'Pour s\'adresser aux enseignants',
+            'Pour s\'adresser poliment à un inconnu',
+            'Pour les personnes ayant fait le pèlerinage ou âgées'
+        ]
+    }
+    st.dataframe(pd.DataFrame(respect_data))
+    
+    # Section interactive
+    st.write("## 🎮 Situations Pratiques")
+    situation = st.selectbox(
+        "Choisissez une situation:",
+        [
+            "Rencontrer quelqu'un pour la première fois",
+            "Demander poliment un service",
+            "Remercier quelqu'un",
+            "S'excuser",
+            "Prendre congé"
+        ]
+    )
+    
+    # Dictionnaire des situations
+    situations = {
+        "Rencontrer quelqu'un pour la première fois": {
+            "Expressions": [
+                "Metcharfin (Enchanté)",
+                "Tcharafna (Honoré de vous rencontrer)",
+                "Rabbi ysahhel (Que Dieu facilite notre rencontre)"
+            ],
+            "Conseil": "Accompagnez toujours d'un sourire et d'une légère inclinaison de la tête"
+        },
+        "Demander poliment un service": {
+            "Expressions": [
+                "Min fadhlek (S'il vous plaît)",
+                "Law sma7t (Si vous permettez)",
+                "3andi tlab (J'ai une demande)"
+            ],
+            "Conseil": "Commencez toujours par des salutations avant de faire votre demande"
+        },
+        "Remercier quelqu'un": {
+            "Expressions": [
+                "Yaichek (Merci)",
+                "Barak Allahou fik (Que Dieu vous bénisse)",
+                "Teslam (Merci beaucoup)"
+            ],
+            "Conseil": "Les Tunisiens apprécient les remerciements expressifs"
+        },
+        "S'excuser": {
+            "Expressions": [
+                "Sam7ni (Pardon)",
+                "Ma3thira (Excusez-moi)",
+                "Mea5ithni (Ne m'en voulez pas)"
+            ],
+            "Conseil": "L'humilité est appréciée dans les excuses"
+        },
+        "Prendre congé": {
+            "Expressions": [
+                "Besslema (Au revoir)",
+                "Rabbi m3ak (Que Dieu soit avec vous)",
+                "Tawwa nchufek (À bientôt)"
+            ],
+            "Conseil": "Ne partez jamais brusquement, prenez le temps de dire au revoir"
+        }
+    }
+    
+    # Afficher les expressions pour la situation choisie
+    st.write("### 📝 Expressions appropriées:")
+    for expr in situations[situation]["Expressions"]:
+        st.write(f"• {expr}")
+    st.info(f"💡 Conseil: {situations[situation]['Conseil']}")
+    
+    # Gestuelle et langage corporel
+    st.write("## 🤝 Gestuelle et Langage Corporel")
+    with st.expander("Voir les gestes importants"):
+        st.write("""
+        - **Poignée de main**: Ferme mais pas trop forte
+        - **Distance**: Gardez une distance respectable avec le sexe opposé
+        - **Regard**: Direct mais pas insistant
+        - **Main sur le cœur**: En saluant ou remerciant pour plus de sincérité
+        - **Hochement de tête**: Pour acquiescer respectueusement
+        """)
+    
+    # Faux pas à éviter
+    st.write("## ⚠️ Faux Pas à Éviter")
+    faux_pas = {
+        "À faire": [
+            "Saluer avant toute conversation",
+            "Utiliser les formules de respect appropriées",
+            "Attendre d'être invité à s'asseoir",
+            "Accepter le thé/café offert"
+        ],
+        "À éviter": [
+            "Tutoyer les personnes âgées",
+            "Interrompre une personne qui parle",
+            "Refuser directement une invitation",
+            "Critiquer ouvertement"
+        ]
+    }
+    col1, col2 = st.columns(2)
+    with col1:
+        st.write("### ✅ À faire")
+        for item in faux_pas["À faire"]:
+            st.write(f"• {item}")
+    with col2:
+        st.write("### ❌ À éviter")
+        for item in faux_pas["À éviter"]:
+            st.write(f"• {item}")
+    
+    # Quiz de politesse
+    st.write("## 🎯 Quiz de Politesse")
+    if st.button("Commencer le quiz"):
+        quiz_questions = [
+            "Comment saluez-vous une personne âgée le matin?",
+            "Quelle est la formule appropriée pour demander poliment?",
+            "Comment remerciez-vous quelqu'un chaleureusement?",
+            "Quelle expression utilisez-vous pour prendre congé?"
+        ]
+        q = random.choice(quiz_questions)
+        st.write(f"Question: {q}")
+        st.text_input("Votre réponse:")
+        r
 def load_default():
     # Titre de l'application
     st.title("👩‍🏫 - La leçon ennuyeuse !")
     # Introduction
     st.caption("""
         Place au cour de Tunisien 🤓, ne t'endors pas trop vite! On a mis des quizzs! """)
-
     st.divider()
+    st.info("Ouvre la barre latéral pour avoir accès à plus de cours !")    
 
     load_conjugaison()
 
@@ -488,28 +951,28 @@ with st.sidebar:
     ])
 ], open_all=True)
 
+def load_selected(selected):
+    # Vérification de l'élément sélectionné et chargement de la leçon correspondante
+    if selected == 'Prononciation':
+        load_prononciation()
+    elif selected == 'Conjugaison':
+        load_conjugaison()
+    elif selected == 'Pronoms personnels':
+        load_pronoms_personnels()
+    elif selected == 'Nombres':
+        load_nombres()
+    elif selected == 'Grammaire':
+        load_grammaire()
+    elif selected == 'Vocabulaire de base':
+        load_vocabulaire_de_base()
+    elif selected == 'Expressions courantes':
+        load_expressions_courantes()
+    elif selected == 'Formes de politesse':
+        load_formes_de_politesse()
+    else:
+        load_default()  # Charge une page par défaut ou une instruction par défaut
 
-# Vérification de l'élément sélectionné et chargement de la leçon correspondante
-if selected == 'Prononciation':
-    load_prononciation()
-elif selected == 'Conjugaison':
-    load_conjugaison()
-elif selected == 'Pronoms personnels':
-    load_pronoms_personnels()
-elif selected == 'Nombres':
-    load_nombres()
-elif selected == 'Grammaire':
-    load_grammaire()
-elif selected == 'Vocabulaire de base':
-    load_vocabulaire_de_base()
-elif selected == 'Expressions courantes':
-    load_expressions_courantes()
-elif selected == 'Formes de politesse':
-    load_formes_de_politesse()
-else:
-    load_default()  # Charge une page par défaut ou une instruction par défaut
-
-
+load_selected(selected)
 
 
 

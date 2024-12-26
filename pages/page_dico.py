@@ -3,6 +3,7 @@ import json
 from difflib import SequenceMatcher
 from pages import menu_sidebar
 
+st.session_state["current_page"] = "Dictionnaire"
 menu_sidebar.show_menu()
 
 # Ajout d'informations sur l'utilisation

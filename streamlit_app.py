@@ -3,9 +3,7 @@ import streamlit_antd_components as sac
 import random
 
 
-st.set_page_config(
-        page_title="🏚️ - Accueil",
-)
+st.session_state["current_page"] = "Accueil"
 
 with open( ".streamlit/style.css" ) as css:
     st.markdown( f'<style>{css.read()}</style>' , unsafe_allow_html= True)
@@ -56,5 +54,22 @@ with right:
     if st.button("Commencer", type="primary", key="quizz_button"):
         st.balloons() 
         st.switch_page("pages/page_quizz.py")
-
-    
+st.write("## A propos du site")
+with st.columns(1, border=True)[0]:
+    st.markdown(
+        """
+        **Tounsi-Learner**, c'est ton compagnon idéal pour apprendre le tunisien en t'amusant ! 
+        Que tu sois débutant ou que tu souhaites perfectionner ton accent, notre plateforme te propose des leçons interactives, un dictionnaire complet et des quiz stimulants. 
+        Le tout gratuitement et accessible depuis n'importe où ! 
+        """
+    )
+st.write("## Comment devenir un pro du tunisien ? \n")
+st.caption("C'est simple ! Il suffit de suivre les étapes suivantes \n")
+sac.steps(
+    items=[
+        sac.StepsItem(title='Apprendre les bases 🤓', description='Ne pas avoir peur de lire les cours !'),
+        sac.StepsItem(title='Connaître les mots du dico 📖'),
+        sac.StepsItem(title='Mesurer ses connaissances dans le quizz 📝'),
+        sac.StepsItem(title="Partir en Tunisie s'entrainer sur le terrain ! "),
+    ], direction = "vertical"
+)  

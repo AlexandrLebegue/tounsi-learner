@@ -5,6 +5,9 @@ from streamlit_javascript import st_javascript
 import time
 from coolname import generate_slug
 import random
+import json
+from datetime import datetime
+
 
 # Configuration de la page
 st.set_page_config(
@@ -13,6 +16,75 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
+
+# Ajout d'informations sur l'utilisation
+with st.sidebar:
+    if st.button("Retour à l'accueil 🏚️", type="secondary", key="lecons_button"):
+       st.switch_page("streamlit_app.py")
+    option = st.selectbox(
+    "**Mode de jeu** 🕹️",
+    ("Solo", "Multijoueur"),
+    placeholder="Select contact method...",
+    )
+
+def charger_dictionnaire(chemin_fichier):
+    """
+    Charge le dictionnaire depuis un fichier JSON
+    """
+    try:
+        with open(chemin_fichier, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {}
+    
+#### Solo
+
+# Fonction pour initialiser le jeu solo
+def initialize_solo_game():
+    return {
+        'start_time': datetime.now(),  # Moment du début du jeu
+        'game_over': False,           # Indicateur si le jeu est terminé
+        'current_word': None,         # Le mot à deviner
+        'score': 0                    # Score initialisé à 0
+    }
+
+# Fonction pour obtenir un mot aléatoire
+def get_random_word(dico):
+    if dico:  # Vérification si le dictionnaire est valide et non vide
+        return random.choice(list(dico.keys()))
+    else:
+        st.error("Le dictionnaire est vide ou invalide.")
+        return print(dico.keys())
+
+
+# Interface du jeu solo
+def solo_game_board(session, dico):
+    # Affichage du mot arabe et saisie de la traduction
+    arabic_word = session['current_word']
+    st.markdown(f"### Mot en arabe: {arabic_word}")
+
+    # Générer une clé unique pour chaque saisie de traduction
+    input_key = f"word_input_{arabic_word}"
+
+    # Saisie de la traduction
+    translation = st.text_input("Traduisez ce mot en français:", key=input_key)
+
+    # Vérification de la traduction
+    if st.button("Valider", type="primary"):
+        correct_translation = dico[arabic_word]["traduction"]
+        if translation.lower() == correct_translation.lower():
+            session['score'] += 1
+            st.success("Bonne traduction ! 🎉")
+        else:
+            st.error(f"Mauvaise traduction ! La bonne réponse était: {correct_translation}")
+
+        # Choisir un nouveau mot après une réponse
+        session['current_word'] = get_random_word(dico)
+
+    # Affichage du score
+    st.markdown(f"### Score: {session['score']} points")
+    
+##### Multijoueur
 
 # Initialisation du jeu
 def initialize_game(mode='pvp'):
@@ -127,37 +199,86 @@ def share_match(session_id):
 st.title("🎯 Klemi")
 st.markdown("*Battle des mots en dialecte tunisien*")
 
-# Création ou rejoindre une partie
-if 'session_id' not in st.session_state:
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("Nouvelle partie", use_container_width=True):
-            session_id = generate_slug(2)
-            game_sessions = get_game_sessions()
-            game_sessions[session_id] = initialize_game()
-            st.session_state.session_id = session_id
-            st.session_state.player_id = game_sessions[session_id]['player_x']
-            st.rerun()
+# Charger le dictionnaire à partir du fichier JSON
+dico = charger_dictionnaire('ressource/dico.json')
 
-    with col2:
-        session_id = st.text_input("Code de la partie:")
-        if st.button("Rejoindre", use_container_width=True):
-            if join_game(session_id):
-                st.success("Partie rejointe avec succès!")
-                st.rerun()
+# Mode solo
+if option == "Solo":
+    if 'game_data' not in st.session_state:  # Vérifier si le jeu a déjà été initialisé
+        st.session_state.game_data = None   # Initialisation si nécessaire
+
+    # Affichage du bouton pour démarrer le jeu
+    if st.session_state.game_data is None:  # Le jeu n'est pas encore démarré
+        if st.button("Démarrer le jeu"):
+            # Initialisation du jeu solo
+            st.session_state.game_data = initialize_solo_game()  # Initialisation du jeu
+            st.session_state.game_data['current_word'] = get_random_word(dico)  # Choisir un mot aléatoire
+            st.rerun()  # Redémarrer pour afficher le jeu immédiatement
+
+    # Si le jeu est actif
+    elif not st.session_state.game_data['game_over']:
+        session = st.session_state.game_data
+
+        # Vérifier si `start_time` est défini pour éviter les erreurs
+        if session.get('start_time') is not None:
+            elapsed_time = (datetime.now() - session['start_time']).total_seconds()
+            time_remaining = max(60 - int(elapsed_time), 0)
+
+            if time_remaining > 0:
+                # Afficher le temps restant
+                st.write(f"Temps restant : {time_remaining} secondes")
+                solo_game_board(session, dico)
             else:
-                st.error("Partie non trouvée!")
+                # Marquer la fin du jeu
+                st.write("Temps écoulé! 🏁")
+                st.session_state.game_data['game_over'] = True
+                st.rerun()  # Rafraîchir la page pour afficher la fin du jeu
+        else:
+            st.write("Erreur : le jeu n'a pas été correctement initialisé.")
 
-# Affichage du jeu si une session est active
-if 'session_id' in st.session_state:
-    session_id = st.session_state.session_id
-    game_sessions = get_game_sessions()
-    session = game_sessions[session_id]
-    
-    if st.button("Partager la partie"):
-        share_match(session_id)
-    
-    game_board(session)
+    # Si le jeu est terminé
+    else:
+        st.write("Le jeu est terminé ! Cliquez pour rejouer.")
+        if st.button("Rejouer"):
+            st.session_state.game_data = None
+            st.rerun()
+        
+
+
+# Mode multijoueur : initialisation de la partie
+if option == "Multijoueur":
+    # Création ou rejoindre une partie
+    if 'session_id' not in st.session_state:
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Nouvelle partie", use_container_width=True):
+                session_id = str(uuid.uuid4())  # Génère un nouvel ID pour la session
+                game_sessions = get_game_sessions()
+                game_sessions[session_id] = initialize_game('pvp')  # Initialisation en mode 'pvp'
+                st.session_state.session_id = session_id
+                st.session_state.player_id = game_sessions[session_id]['player_x']
+                st.rerun()
+
+        with col2:
+            session_id = st.text_input("Code de la partie:")
+            if st.button("Rejoindre", use_container_width=True):
+                if join_game(session_id):
+                    st.success("Partie rejointe avec succès!")
+                    st.rerun()
+                else:
+                    st.error("Partie non trouvée!")
+
+    # Affichage du jeu si une session est active
+    if 'session_id' in st.session_state:
+        session_id = st.session_state.session_id
+        game_sessions = get_game_sessions()
+        session = game_sessions[session_id]
+
+        if st.button("Partager la partie"):
+            share_match(session_id)
+        
+        game_board(session)
+
 
 # Styles CSS personnalisés
 st.markdown("""

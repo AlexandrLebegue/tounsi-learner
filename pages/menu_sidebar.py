@@ -11,15 +11,16 @@ def show_nav_bar():
         #    "background-color": "rgb(200, 16, 46)",
         #    },
         #
-        #"div": {
-        #    "max-width": "32rem",
-        #},
+        "div": {
+            "max-width": "25rem",
+            "box-shadow": "0px 10px 0px rgb(255, 75, 75)"
+        },
         "nav": {
             "box-shadow": "10px 0px 0px rgb(255, 75, 75)"
         },
         "img": {
             "padding-right": "14px",
-            "justify-content": "left",
+
 
         },
         "span": {
@@ -30,15 +31,19 @@ def show_nav_bar():
             "padding": "0.4375rem 0.625rem",
             "font-family": "'Roboto Thin', sans-serif",
             "transition": "0.3s",
-            "font-weight": "bold",
-
+            "font-weight": "lighter",
+            "font-size": "90%",
+            "justify-content": "left",
+            
         },
         #    "margin": "0 0.125rem",
         #    "padding": "0.4375rem 0.625rem",
               # Ajout de la police
         #},
         "active": {
-            "color": "rgb(255, 75, 75)"
+            "color": "rgb(255, 75, 75)",
+            "background-color": "rgba(255, 75, 75, 0.25)"
+
         },
 
         "hover": {
@@ -51,10 +56,10 @@ def show_nav_bar():
 
     options = {
     "fix_shadow": True,
-    "show_menu": False
+    "show_menu": False,
     }
     
-    selected = st_navbar(pages, styles=styles, options = options, selected = None, logo_path="logo_true.svg", )
+    selected = st_navbar(pages, styles=styles, options = options, selected = None, )
     if selected == "🏚️ Accueil" and "Accueil" != st.session_state["current_page"]:
         st.switch_page("streamlit_app.py")
     elif selected == "👩‍🏫 Leçons" and "Leçons" != st.session_state["current_page"]:

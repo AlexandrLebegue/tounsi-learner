@@ -72,8 +72,25 @@ def show_nav_bar():
         st.switch_page("pages/page_classement.py")
 
 def show_menu():
-    show_nav_bar()
+    #show_nav_bar()
     with st.sidebar:
+        with open( ".streamlit/style.css" ) as css:
+            st.markdown( f'<style>{css.read()}</style>' , unsafe_allow_html= True)
+
+        st.markdown("""<style>
+  div[data-testid="stSidebarHeader"] > img, div[data-testid="collapsedControl"] > img {
+      height: 10rem;
+      width: auto;
+  }
+  
+  div[data-testid="stSidebarHeader"], div[data-testid="stSidebarHeader"] > *,
+  div[data-testid="collapsedControl"], div[data-testid="collapsedControl"] > * {
+      display: flex;
+      align-items: center;
+  }
+</style>""", unsafe_allow_html= True)
+        st.logo("output-onlinepngtools.png", size = 'large')
+        st.divider()
         selected = sac.menu([
             sac.MenuItem('Navigation', children = [
                 sac.MenuItem('Accueil', icon='house-fill'),

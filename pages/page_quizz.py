@@ -14,14 +14,6 @@ if 'shared_games' not in st.session_state:
     st.session_state.shared_games = defaultdict(dict)
 
 
-# Configuration de la page
-st.set_page_config(
-    page_title="Klemi - Battle des mots tunisiens",
-    page_icon="🎯",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
-
 # Ajout d'informations sur l'utilisation
 with st.sidebar:
     if st.button("Retour à l'accueil 🏚️", type="secondary", key="lecons_button"):
@@ -396,6 +388,13 @@ def share_match(session_id):
 st.title("🎯 Klemi")
 st.markdown("*Battle des mots en dialecte tunisien*")
 
+
+if st.button("ajouter un mot a session_state"):
+    if st.session_state.get("Player") is None:
+        st.session_state["Player"] = []
+    st.session_state["Player"].append(random.choice(["player","player_2", "player_3"]))
+
+st.write("Sessiosn_state = " + str(st.session_state.get("Player")))
 # Charger le dictionnaire à partir du fichier JSON
 dico = charger_dictionnaire('ressource/dico.json')
 

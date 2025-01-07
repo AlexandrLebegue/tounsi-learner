@@ -3,3 +3,4 @@ bs4
 streamlit_javascript
 streamlit_antd_components 
 coolname
+streamlit-community-navigation-bar

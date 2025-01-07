@@ -1,16 +1,15 @@
 import streamlit as st
+from streamlit_navigation_bar import st_navbar
 import streamlit_antd_components as sac
 import random
 
-
 st.session_state["current_page"] = "Accueil"
-
 with open( ".streamlit/style.css" ) as css:
     st.markdown( f'<style>{css.read()}</style>' , unsafe_allow_html= True)
 
 st.session_state["current_page"] = "Home"
 
-st.markdown("<h1 style='text-align: center; color: white;'>🇹🇳 Tounsi-Learner</h1>", unsafe_allow_html=True)
+st.markdown("<div class='Main_Title'><h1 style='text-align: center; color: white;'><font size='30'><big><big><big>🇹🇳 Tounsi Learner</big></big></big></font></h1></div>", unsafe_allow_html=True)
 st.markdown("<h2 style='text-align: center; color: grey;'>Avec tounsi-learner, deviens un pro du tunisien 😁</h2>", unsafe_allow_html=True)
 st.divider()
 

@@ -9,10 +9,22 @@ import json
 from streamlit.components.v1 import html
 from collections import defaultdict
 
+@st.cache_resource
+def get_game_sessions():
+    return st.session_state.shared_games
+
 # Global shared state (persist across all sessions)
 if 'shared_games' not in st.session_state:
     st.session_state.shared_games = defaultdict(dict)
 
+
+# Configuration de la page
+st.set_page_config(
+    page_title="Klemi - Battle des mots tunisiens",
+    page_icon="🎯",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
 
 # Ajout d'informations sur l'utilisation
 with st.sidebar:
@@ -129,71 +141,497 @@ def solo_game_board(session, dico):
 
 ##### Multijoueur
 
-
-# Gestion des sessions de jeu
-def get_game(game_id):
-    return st.session_state.shared_games.get(game_id)
-
-def get_game_sessions():
-    if 'shared_games' not in st.session_state:
-        st.session_state.shared_games = {}
-    return st.session_state.shared_games
-
 def initialize_game(mode="multiplayer"):
     """Initialize a new game session"""
-    game_id = generate_slug(2)  # Crée un code de partie court et mémorisable
-    return {
+    game_id = generate_slug(2)
+    game = {
         'game_id': game_id,
         'status': 'waiting',
-        'player_host': str(uuid.uuid4()),  # Créateur de la partie
-        'player_guest': None,  # Joueur qui rejoint
-        'players': {},
-        'game_start_time': None,
-        'words_list': [],
-        'game_duration': 60
-    }
-
-def join_game(game_id, player_name):
-    game_sessions = get_game_sessions()
-    if game_id in game_sessions:
-        session = game_sessions[game_id]
-        if session['player_guest'] is None:
-            player_id = str(uuid.uuid4())
-            session['player_guest'] = player_id
-            session['players'][player_id] = {
-                'name': player_name,
+        'player_host': str(uuid.uuid4()),
+        'player_guest': None,
+        'players': {
+            'host': {
+                'name': None,
+                'score': 0,
+                'current_word_index': 0
+            },
+            'guest': {
+                'name': None,
                 'score': 0,
                 'current_word_index': 0
             }
-            st.session_state.player_session = {
-                'game_id': game_id,
-                'player_id': player_id
-            }
+        },
+        'game_start_time': None,
+        'words_list': [],
+        'game_duration': 60,
+        'countdown_duration': 30,
+        'countdown_start': None
+    }
+    return game
+
+
+def create_new_game(player_name, game_mode="multiplayer"):
+    """Crée une nouvelle partie"""
+    game_id = generate_slug(2)
+    game_sessions = get_game_sessions()
+    
+    # Initialiser la session de jeu
+    game_sessions[game_id] = initialize_game(mode=game_mode)
+    game_sessions[game_id]['players']['host']['name'] = player_name
+    player_id = game_sessions[game_id]['player_host']
+    
+    # Mettre à jour les états de session
+    st.session_state.game_id = game_id
+    st.session_state.player_id = player_id
+    st.session_state.wait_to_start = game_mode == 'multiplayer'
+    
+    # Mettre à jour l'URL avec l'ID de la partie
+    st.query_params['game_id'] = game_id
+    
+    return game_id
+
+def display_waiting_room(game, player_id):
+    """Affiche la salle d'attente et gère la synchronisation du début de partie"""
+    game_sessions = get_game_sessions()
+    
+    # Si les deux joueurs sont présents
+    if game['players']['guest']['name'] and game['players']['host']['name']:
+        # Initialiser le compte à rebours si ce n'est pas déjà fait
+        if game['countdown_start'] is None:
+            game['countdown_start'] = time.time()
+            game['status'] = 'countdown'
+            game_sessions[game['game_id']] = game
+        
+        # Afficher le compte à rebours avec JavaScript
+        waiting_container = st.empty()
+        with waiting_container.container():
+            st.markdown("# Préparation de la partie")
+            st.markdown("### 👥 Joueurs de la partie:")
+            st.write(f"• {game['players']['host']['name']} (Créateur)")
+            st.write(f"• {game['players']['guest']['name']} (Invité)")
+            
+            countdown_html = """
+                <div style="text-align: center;">
+                    <div style="font-size: 48px; font-weight: bold;" id="countdown">30</div>
+                    <div style="font-size: 18px;">secondes avant le début de la partie</div>
+                </div>
+
+                <script>
+                    var countdownElement = document.getElementById('countdown');
+                    var timeLeft = 30;
+                    
+                    function updateCountdown() {
+                        countdownElement.textContent = timeLeft;
+                        if (timeLeft <= 0) {
+                            clearInterval(countdownInterval);
+                            // Déclencher le début de la partie
+                            window.parent.postMessage({type: 'streamlit:start_game'}, '*');
+                            window.location.reload();
+                            return;
+                        }
+                        timeLeft -= 1;
+                    }
+                    
+                    var countdownInterval = setInterval(updateCountdown, 1000);
+                    updateCountdown();
+                </script>
+            """
+            st.components.v1.html(countdown_html, height=150)
+            
+            # Ajouter un listener pour le début de la partie
+            st.markdown("""
+                <script>
+                    window.addEventListener('message', function(event) {
+                        if (event.data.type === 'streamlit:start_game') {
+                            window.location.reload();
+                        }
+                    });
+                </script>
+            """, unsafe_allow_html=True)
+
+            # Vérifier si c'est l'heure de commencer
+            elapsed = time.time() - game['countdown_start']
+            if elapsed >= game['countdown_duration']:
+                game['status'] = 'playing'
+                game['game_start_time'] = time.time()
+                if not game['words_list']:
+                    game['words_list'] = prepare_words_list(dico, 20)
+                game_sessions[game['game_id']] = game
+                st.rerun()  # Un seul rerun au début de la partie
+    
+    else:
+        # Salle d'attente standard
+        waiting_container = st.empty()
+        with waiting_container.container():
+            st.subheader("🎮 Salle d'attente")
+            st.code(game['game_id'], language="text")
+            st.markdown("Partagez ce code avec votre adversaire!")
+            
+            st.subheader("👥 Joueurs connectés:")
+            if game['players']['host']['name']:
+                st.write(f"• {game['players']['host']['name']} (Créateur)")
+            if game['players']['guest']['name']:
+                st.write(f"• {game['players']['guest']['name']} (Invité)")
+                
+            if not game['players']['guest']['name']:
+                st.info("En attente d'un autre joueur...")
+            
+            # Actualiser la page toutes les 3 secondes en attente d'un autre joueur
+            st.markdown("""
+                <script>
+                    setTimeout(function() {
+                        window.location.reload();
+                    }, 3000);
+                </script>
+            """, unsafe_allow_html=True)
+
+def display_game_interface(game, player_id, dico):
+    """Affiche l'interface de jeu pour un joueur"""
+    game_sessions = get_game_sessions()
+    
+    # Déterminer si le joueur est l'hôte ou l'invité
+    is_host = player_id == game['player_host']
+    player_type = 'host' if is_host else 'guest'
+    player = game['players'][player_type]
+    opponent = game['players']['guest' if is_host else 'host']
+
+    # Header avec temps et score
+    col1, col2, col3 = st.columns([2, 1, 1])
+    
+    with col1:
+        st.write("### ⏱️ Temps restant:")
+        timer_html = """
+            <div style="display: inline-block; color: white; font-size: 24px; font-weight: bold;" id="timer">60</div>
+            <script>
+                function startTimer() {
+                    var timeLeft = 60;
+                    var timerElement = document.getElementById('timer');
+                    
+                    var countdown = setInterval(function() {
+                        timeLeft--;
+                        timerElement.textContent = timeLeft + ' secondes';
+                        
+                        if (timeLeft <= 0) {
+                            clearInterval(countdown);
+                            window.parent.postMessage({type: 'streamlit:timer_finished'}, '*');
+                            window.location.reload();
+                        }
+                    }, 1000);
+                }
+                
+                startTimer();
+            </script>
+        """
+        st.components.v1.html(timer_html, height=50)
+    
+    with col3:
+        st.markdown(f"### Score: {player['score']}")
+    
+    # Calculer le temps restant
+    elapsed_time = time.time() - game['game_start_time']
+    remaining_time = max(0, game['game_duration'] - elapsed_time)
+    
+    # Vérifier si le jeu est terminé
+    if remaining_time <= 0:
+        st.empty()  # Nettoyer l'interface
+        st.markdown("# 🏁 Fin de la partie!")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("### Votre score:")
+            st.markdown(f"## {player['score']} points")
+        with col2:
+            st.markdown("### Score adversaire:")
+            st.markdown(f"## {opponent['score']} points")
+        
+        # Déterminer et afficher le résultat
+        if player['score'] > opponent['score']:
+            st.balloons()
+            st.success("### 🏆 Félicitations! Vous avez gagné!")
+        elif player['score'] < opponent['score']:
+            st.error("### Vous avez perdu... Meilleure chance la prochaine fois!")
+        else:
+            st.info("### 🤝 Match nul!")
+        
+        # Bouton pour rejouer
+        if st.button("Nouvelle partie"):
+            del st.session_state.player_id
+            del st.session_state.game_id
+            st.rerun()
+        return
+
+    # Afficher le mot actuel
+    if game['words_list'] and len(game['words_list']) > player['current_word_index']:
+        current_word = game['words_list'][player['current_word_index']]
+        st.markdown(f"### Mot en arabe: {current_word}")
+        
+        # Interface de traduction
+        translation = st.text_input(
+            "Traduisez ce mot en français:",
+            key=f"mp_word_input_{current_word}"
+        )
+        
+        # Colonnes pour les boutons et messages
+        col1, col2 = st.columns([3, 7])
+        
+        # Vérification de la traduction
+        with col1:
+            if st.button("Valider", type="primary"):
+                correct_translation = dico[current_word]["traduction"]
+                if translation.lower() == correct_translation.lower():
+                    player['score'] += 1
+                    with col2:
+                        st.success("Bonne traduction ! ")
+                else:
+                    player['score'] -= 2
+                    with col2:
+                        st.error(f"Mauvaise réponse ! La bonne traduction était: {correct_translation}")
+                player['current_word_index'] += 1
+                game_sessions[game['game_id']] = game
+        
+        # Colonnes pour le bouton passer
+        col3, col4 = st.columns([3, 7])
+        
+        # Bouton pour passer
+        with col3:
+            if st.button("Passer", type="secondary"):
+                with col4:
+                    st.info(f"Le mot '{current_word}' signifiait: {dico[current_word]['traduction']}")
+                player['current_word_index'] += 1
+                game_sessions[game['game_id']] = game
+        
+def display_game_over(player, opponent, is_host):
+    """Affiche l'écran de fin de partie"""
+    st.empty()  # Nettoyer l'interface précédente
+    
+    st.markdown("# 🏁 Fin de la partie!")
+    
+    # Calculer et afficher les scores
+    player_score = player['score']
+    opponent_score = opponent['score']
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("### Votre score:")
+        st.markdown(f"## {player_score} points")
+    
+    with col2:
+        st.markdown("### Score adversaire:")
+        st.markdown(f"## {opponent_score} points")
+    
+    # Déterminer et afficher le résultat
+    if player_score > opponent_score:
+        st.balloons()
+        st.success("### 🏆 Félicitations! Vous avez gagné!")
+    elif player_score < opponent_score:
+        st.error("### Vous avez perdu... Meilleure chance la prochaine fois!")
+    else:
+        st.info("### 🤝 Match nul!")
+    
+    # Bouton pour rejouer
+    if st.button("Nouvelle partie"):
+        # Nettoyer les états de session
+        if 'player_id' in st.session_state:
+            del st.session_state.player_id
+        if 'game_id' in st.session_state:
+            del st.session_state.game_id
+        # Retirer le paramètre game_over de l'URL
+        st.query_params.clear()
+        st.rerun()
+
+@st.cache_data
+def update_final_score(game_id, player_id, final_score):
+    """Met à jour le score final d'un joueur"""
+    game_sessions = get_game_sessions()
+    game = game_sessions[game_id]
+    
+    if player_id == game['player_host']:
+        game['players']['host']['final_score'] = final_score
+    else:
+        game['players']['guest']['final_score'] = final_score
+    
+    game_sessions[game_id] = game
+    return game
+    
+def join_existing_game():
+    """Interface pour rejoindre une partie existante"""
+    game_id = st.text_input("Code de la partie:")
+    player_name = st.text_input("Votre pseudo:", key="join_name")
+    if st.button("Rejoindre", type="primary") and game_id and player_name:
+        if join_game(game_id, player_name):
+            st.success("Vous avez rejoint la partie!")
+            st.rerun()
+        else:
+            st.error("Partie non trouvée ou complète!")
+
+def create_countdown_timer2(duration=30):
+    """Crée un compte à rebours en temps réel"""
+    timer_html = f"""
+        <div style="text-align: center;">
+            <div style="font-size: 48px; font-weight: bold;" id="countdown">30</div>
+            <div style="font-size: 18px;">secondes avant le début de la partie</div>
+        </div>
+
+        <script>
+            var countdownElement = document.getElementById('countdown');
+            var timeLeft = {duration};
+            
+            function updateCountdown() {{
+                countdownElement.textContent = timeLeft;
+                if (timeLeft <= 0) {{
+                    // Envoyer un message à Streamlit pour recharger la page
+                    window.parent.postMessage({{type: 'streamlit:componentReady'}}, '*');
+                    clearInterval(countdownInterval);
+                    window.location.reload();
+                }}
+                timeLeft -= 1;
+            }}
+            
+            // Mettre à jour chaque seconde
+            var countdownInterval = setInterval(updateCountdown, 1000);
+            
+            // Démarrer immédiatement
+            updateCountdown();
+        </script>
+    """
+    html(timer_html, height=150)
+
+# Interface principale pour le mode multijoueur
+
+def multiplayer_interface():
+    """Interface principale du mode multijoueur"""
+    dico = charger_dictionnaire('ressource/dico.json')
+    game_sessions = get_game_sessions()
+    
+    # Si le joueur n'est pas dans une partie
+    if 'player_id' not in st.session_state:
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("### Créer une partie")
+            player_name = st.text_input("Votre pseudo (créateur):")
+            if st.button("Nouvelle partie", type="primary") and player_name:
+                game = initialize_game()
+                game_id = game['game_id']
+                game['players']['host']['name'] = player_name
+                game_sessions[game_id] = game
+                st.session_state.game_id = game_id
+                st.session_state.player_id = game['player_host']
+                st.success(f"Partie créée! Code: {game_id}")
+                share_match()
+                st.rerun()
+        
+        with col2:
+            st.markdown("### Rejoindre une partie")
+            game_id = st.text_input("Code de la partie:")
+            player_name = st.text_input("Votre pseudo:", key="join_name")
+            if st.button("Rejoindre", type="primary") and game_id and player_name:
+                if join_game(game_id, player_name):
+                    st.success("Vous avez rejoint la partie!")
+                    st.rerun()
+                else:
+                    st.error("Partie non trouvée ou complète!")
+    
+    # Si le joueur est dans une partie
+    else:
+        game_id = st.session_state.game_id
+        game = game_sessions.get(game_id)
+        
+        if game:
+            if game['status'] in ['waiting', 'countdown']:
+                display_waiting_room(game, st.session_state.player_id)
+            elif game['status'] == 'playing':
+                display_game_interface(game, st.session_state.player_id, dico)
+        else:
+            st.error("Partie non trouvée!")
+            del st.session_state.player_id
+            del st.session_state.game_id
+            st.rerun()
+
+def join_game(game_id, player_name):
+    """Permet à un joueur de rejoindre une partie existante"""
+    game_sessions = get_game_sessions()
+    if game_id in game_sessions:
+        game = game_sessions[game_id]
+        if game['player_guest'] is None:
+            player_id = str(uuid.uuid4())
+            game['player_guest'] = player_id
+            game['players']['guest']['name'] = player_name
+            st.session_state.game_id = game_id
+            st.session_state.player_id = player_id
+            game_sessions[game_id] = game
             return True
     return False
 
-def create_new_game(player_name):
-    game_sessions = get_game_sessions()
-    game = initialize_game()
-    game_id = game['game_id']
-    player_id = game['player_host']
-    
-    # Ajouter le joueur créateur
-    game['players'][player_id] = {
-        'name': player_name,
-        'score': 0,
-        'current_word_index': 0
-    }
-    
-    game_sessions[game_id] = game
-    st.session_state.player_session = {
-        'game_id': game_id,
-        'player_id': player_id
-    }
-    return game_id
+def prepare_words_list(dico, num_words=20):
+    """Prépare une liste aléatoire de mots pour la partie"""
+    words = list(dico.keys())
+    return random.sample(words, min(num_words, len(words)))
 
-def share_match(game_id):
-    base_url = str(st_javascript("window.location.href")).split("?")[0]
+def display_waiting_room(game, player_id):
+    """Affiche la salle d'attente"""
+    game_sessions = get_game_sessions()
+    
+    # Si les deux joueurs sont présents
+    if game['players']['guest']['name'] and game['players']['host']['name']:
+        # Initialiser le compte à rebours si ce n'est pas déjà fait
+        if game['countdown_start'] is None:
+            game['countdown_start'] = time.time()
+            game['status'] = 'countdown'
+            game_sessions[game['game_id']] = game
+            st.rerun()
+
+        # Calculer le temps restant
+        elapsed = time.time() - game['countdown_start']
+        remaining = max(0, game['countdown_duration'] - elapsed)
+        
+        if remaining > 0:
+            # Conteneur principal pour le compte à rebours
+            countdown_container = st.empty()
+            with countdown_container.container():
+                st.markdown("# Préparation de la partie")
+                # Afficher les joueurs avant le démarrage
+                st.markdown("### 👥 Joueurs de la partie:")
+                st.write(f"• {game['players']['host']['name']} (Créateur)")
+                st.write(f"• {game['players']['guest']['name']} (Invité)")
+                st.markdown(f"### ⏱️ La partie commence dans: {int(remaining)} secondes")
+                st.progress(remaining / game['countdown_duration'])
+        
+        # Vérifier si le compte à rebours est terminé
+        if remaining <= 0:
+            game['status'] = 'playing'
+            game['game_start_time'] = time.time()
+            if not game['words_list']:
+                game['words_list'] = prepare_words_list(dico, 20)
+            game_sessions[game['game_id']] = game
+            st.rerun()
+        else:
+            time.sleep(0.1)
+            st.rerun()
+    else:
+        # Conteneur pour la salle d'attente
+        waiting_container = st.empty()
+        with waiting_container.container():
+            st.subheader("🎮 Salle d'attente")
+            st.code(game['game_id'], language="text")
+            st.markdown("Partagez ce code avec votre adversaire!")
+            
+            st.subheader("👥 Joueurs connectés:")
+            if game['players']['host']['name']:
+                st.write(f"• {game['players']['host']['name']} (Créateur)")
+            if game['players']['guest']['name']:
+                st.write(f"• {game['players']['guest']['name']} (Invité)")
+                
+            if not game['players']['guest']['name']:
+                st.info("En attente d'un autre joueur...")
+            
+            time.sleep(1)
+            st.rerun()
+
+def _share_match(game_id):
+    """Fonction interne pour partager la partie"""
+    base_url = str(current_url).split("?")[0]
     join_url = f"{base_url}?{urlencode({'game_id': game_id})}"
     st.code(join_url, language="text")
     
@@ -209,192 +647,18 @@ def share_match(game_id):
         </a>
     """, unsafe_allow_html=True)
 
-def display_game_interface(game, player_id, dico):
-    player = game['players'][player_id]
-    st.markdown(f"### Score: {player['score']}")
-    
-    if game['status'] == 'playing':
-        current_word = game['words_list'][player['current_word_index']]
-        st.markdown(f"### Mot en arabe: {current_word}")
-        
-        translation = st.text_input("Traduisez ce mot en français:", 
-                                  key=f"mp_word_input_{current_word}")
-        
-        col1, col2 = st.columns([3, 7])
-        with col1:
-            if st.button("Valider", type="primary"):
-                correct_translation = dico[current_word]["traduction"]
-                if translation.lower() == correct_translation.lower():
-                    player['score'] += 1
-                    with col2:
-                        st.success("Bonne traduction!")
-                else:
-                    player['score'] -= 2
-                    with col2:
-                        st.error(f"Mauvaise réponse! La bonne traduction était: {correct_translation}")
-                player['current_word_index'] += 1
-                if player['current_word_index'] >= len(game['words_list']):
-                    player['current_word_index'] = 0
+st.dialog("Share")
+def share_match():
+    """Fonction décorée pour le dialogue de partage"""
+    if 'game_id' in st.session_state:
+        _share_match(st.session_state.game_id)
 
-# Interface principale pour le mode multijoueur
-def multiplayer_interface():
-    dico = charger_dictionnaire('ressource/dico.json')
-    
-    if 'game_id' in st.query_params and 'player_session' not in st.session_state:
-        game_id = st.query_params['game_id']
-        st.info(f"Rejoindre la partie: {game_id}")
-        player_name = st.text_input("Votre pseudo:")
-        if st.button("Rejoindre", type="primary") and player_name:
-            if join_game(game_id, player_name):
-                st.success("Vous avez rejoint la partie!")
-                st.rerun()
-            else:
-                st.error("Partie non trouvée ou complète!")
-                
-    elif 'player_session' not in st.session_state:
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown("### Créer une partie")
-            player_name = st.text_input("Votre pseudo (créateur):")
-            if st.button("Nouvelle partie", type="primary") and player_name:
-                game_id = create_new_game(player_name)
-                st.success(f"Partie créée! Code: {game_id}")
-                share_match(game_id)
-                st.rerun()
-        
-        with col2:
-            st.markdown("### Rejoindre une partie")
-            game_id = st.text_input("Code de la partie:")
-            player_name = st.text_input("Votre pseudo:", key="join_name")
-            if st.button("Rejoindre", type="primary") and game_id and player_name:
-                if join_game(game_id, player_name):
-                    st.success("Vous avez rejoint la partie!")
-                    st.rerun()
-                else:
-                    st.error("Partie non trouvée ou complète!")
-    
-    else:
-        game_sessions = get_game_sessions()
-        game = game_sessions[st.session_state.player_session['game_id']]
-        player_id = st.session_state.player_session['player_id']
-        
-        # Afficher le code de la partie
-        st.code(game['game_id'], language="text")
-        
-        # Afficher les joueurs
-        st.subheader("👥 Joueurs connectés:")
-        for pid, player_info in game['players'].items():
-            st.write(f"• {player_info['name']}")
-        
-        # Démarrer la partie si deux joueurs sont présents
-        if len(game['players']) >= 2 and game['status'] == 'waiting':
-            if st.button("Démarrer la partie"):
-                game['status'] = 'playing'
-                game['game_start_time'] = time.time()
-                game['words_list'] = list(random.sample(list(dico.keys()), 20))
-                st.rerun()
-        
-        # Afficher l'interface de jeu
-        if game['status'] == 'playing':
-            display_game_interface(game, player_id, dico)
-
-def prepare_words_list(dico, num_words=20):
-    """Prépare une liste aléatoire de mots pour la partie"""
-    words = list(dico.keys())
-    return random.sample(words, min(num_words, len(words)))
-
-def display_waiting_room(game, player_id):
-    st.subheader("🎮 Salle d'attente")
-    
-    # Afficher le code de la partie
-    st.code(game['game_id'], language="text")
-    st.markdown("Partagez ce code avec vos amis pour qu'ils puissent rejoindre la partie!")
-    
-    # Afficher la liste des joueurs
-    st.subheader("👥 Joueurs connectés:")
-    for pid, player_info in game['players'].items():
-        st.write(f"• {player_info['name']}")
-    
-    # Si compte à rebours en cours
-    if game['status'] == 'countdown' and game['start_countdown']:
-        remaining = max(0, game['countdown_duration'] - 
-                       (time.time() - game['start_countdown']))
-        st.progress(remaining / game['countdown_duration'])
-        st.write(f"La partie commence dans {int(remaining)} secondes")
-    
-    # Bouton pour démarrer directement (visible uniquement pour le créateur)
-    if (game['status'] == 'waiting' and 
-        len(game['players']) >= 2 and 
-        list(game['players'].keys())[0] == player_id):
-        if st.button("Démarrer la partie maintenant"):
-            game['status'] = 'playing'
-            game['game_start_time'] = time.time()
-            game['words_list'] = prepare_words_list(dico)
-            for player in game['players'].values():
-                player['current_word_index'] = 0
-            st.rerun()
-
-def display_game_interface(game, player_id, dico):
-    player = game['players'][player_id]
-    current_word = game['words_list'][player['current_word_index']]
-    
-    # Afficher le temps restant
-    elapsed_time = time.time() - game['game_start_time']
-    remaining_time = max(0, game['game_duration'] - elapsed_time)
-    st.progress(remaining_time / game['game_duration'])
-    st.markdown(f"### ⏱️ Temps restant: {int(remaining_time)} secondes")
-    
-    # Interface similaire au mode solo
-    st.markdown(f"### Mot en arabe: {current_word}")
-    translation = st.text_input("Traduisez ce mot en français:", 
-                              key=f"mp_word_input_{current_word}")
-    
-    col1, col2 = st.columns([3, 7])
-    with col1:
-        if st.button("Valider", type="primary"):
-            correct_translation = dico[current_word]["traduction"]
-            if translation.lower() == correct_translation.lower():
-                player['score'] += 1
-                with col2:
-                    st.success("Bonne traduction!")
-            else:
-                player['score'] -= 2
-                with col2:
-                    st.error(f"Mauvaise réponse! La bonne traduction était: {correct_translation}")
-            player['current_word_index'] += 1
-            if player['current_word_index'] >= len(game['words_list']):
-                player['current_word_index'] = 0
-
-# Fonction de partage
-def share_match(session_id):
-    base_url = str(st_javascript("window.location.href")).split("?")[0]
-    join_url = f"{base_url}?{urlencode({'session_id': session_id})}"
-    st.code(join_url, language="text")
-    
-    whatsapp_message = f"Yezi na3mlou battle des mots tunisiens! 🎯 {join_url}"
-    whatsapp_url = f"https://wa.me/?text={quote_plus(whatsapp_message)}"
-    
-    st.markdown(f"""
-        <a href="{whatsapp_url}" target="_blank">
-            <button style="background-color:#25D366; color:white; border:none; 
-                         padding:10px 20px; border-radius:5px; cursor:pointer;">
-                Partager sur WhatsApp 📱
-            </button>
-        </a>
-    """, unsafe_allow_html=True)
+current_url = st_javascript("window.location.href")
 
 # Interface principale
 st.title("🎯 Klemi")
 st.markdown("*Battle des mots en dialecte tunisien*")
 
-
-if st.button("ajouter un mot a session_state"):
-    if st.session_state.get("Player") is None:
-        st.session_state["Player"] = []
-    st.session_state["Player"].append(random.choice(["player","player_2", "player_3"]))
-
-st.write("Sessiosn_state = " + str(st.session_state.get("Player")))
 # Charger le dictionnaire à partir du fichier JSON
 dico = charger_dictionnaire('ressource/dico.json')
 

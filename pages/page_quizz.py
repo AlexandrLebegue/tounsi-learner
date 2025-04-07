@@ -249,6 +249,7 @@ def display_waiting_room(game, player_id):
                 </script>
             """, unsafe_allow_html=True)
 
+            
             # Vérifier si c'est l'heure de commencer
             elapsed = time.time() - game['countdown_start']
             if elapsed >= game['countdown_duration']:
@@ -295,69 +296,37 @@ def display_game_interface(game, player_id, dico):
     player = game['players'][player_type]
     opponent = game['players']['guest' if is_host else 'host']
 
+    # Calculer le temps restant
+    elapsed_time = time.time() - game['game_start_time']
+    remaining_time = max(0, game['game_duration'] - elapsed_time)
+    
     # Header avec temps et score
     col1, col2, col3 = st.columns([2, 1, 1])
     
     with col1:
         st.write("### ⏱️ Temps restant:")
-        timer_html = """
-            <div style="display: inline-block; color: white; font-size: 24px; font-weight: bold;" id="timer">60</div>
-            <script>
-                function startTimer() {
-                    var timeLeft = 60;
-                    var timerElement = document.getElementById('timer');
-                    
-                    var countdown = setInterval(function() {
-                        timeLeft--;
-                        timerElement.textContent = timeLeft + ' secondes';
-                        
-                        if (timeLeft <= 0) {
-                            clearInterval(countdown);
-                            window.parent.postMessage({type: 'streamlit:timer_finished'}, '*');
-                            window.location.reload();
-                        }
-                    }, 1000);
-                }
-                
-                startTimer();
-            </script>
-        """
-        st.components.v1.html(timer_html, height=50)
+        st.progress(remaining_time / game['game_duration'])
+        st.write(f"{int(remaining_time)} secondes")
     
     with col3:
         st.markdown(f"### Score: {player['score']}")
     
-    # Calculer le temps restant
-    elapsed_time = time.time() - game['game_start_time']
-    remaining_time = max(0, game['game_duration'] - elapsed_time)
+    # Ajoute le listener dans Streamlit pour gérer la fin du jeu
+    st.markdown("""<script>
+        window.addEventListener('message', function(event) {
+            if (event.data.type === 'streamlit:timer_finished') {
+                // Quand le message est reçu, mettre à jour l'état du jeu sans interaction manuelle
+                window.location.reload();  // Rafraîchit la page pour appliquer la logique de fin
+            }
+        });
+    </script>""", unsafe_allow_html=True)
     
     # Vérifier si le jeu est terminé
     if remaining_time <= 0:
-        st.empty()  # Nettoyer l'interface
-        st.markdown("# 🏁 Fin de la partie!")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("### Votre score:")
-            st.markdown(f"## {player['score']} points")
-        with col2:
-            st.markdown("### Score adversaire:")
-            st.markdown(f"## {opponent['score']} points")
-        
-        # Déterminer et afficher le résultat
-        if player['score'] > opponent['score']:
-            st.balloons()
-            st.success("### 🏆 Félicitations! Vous avez gagné!")
-        elif player['score'] < opponent['score']:
-            st.error("### Vous avez perdu... Meilleure chance la prochaine fois!")
-        else:
-            st.info("### 🤝 Match nul!")
-        
-        # Bouton pour rejouer
-        if st.button("Nouvelle partie"):
-            del st.session_state.player_id
-            del st.session_state.game_id
-            st.rerun()
+        st.session_state.game_over = True
+        st.session_state.player_final = game['players']['host' if player_id == game['player_host'] else 'guest']
+        st.session_state.opponent_final = game['players']['guest' if player_id == game['player_host'] else 'host']
+        st.rerun()
         return
 
     # Afficher le mot actuel
@@ -374,6 +343,10 @@ def display_game_interface(game, player_id, dico):
         # Colonnes pour les boutons et messages
         col1, col2 = st.columns([3, 7])
         
+        # Ajout d'un état pour vérifier quel bouton a été cliqué
+        if 'button_clicked' not in st.session_state:
+            st.session_state.button_clicked = None
+        
         # Vérification de la traduction
         with col1:
             if st.button("Valider", type="primary"):
@@ -381,12 +354,13 @@ def display_game_interface(game, player_id, dico):
                 if translation.lower() == correct_translation.lower():
                     player['score'] += 1
                     with col2:
-                        st.success("Bonne traduction ! ")
+                        st.success("Bonne traduction !")
                 else:
                     player['score'] -= 2
                     with col2:
                         st.error(f"Mauvaise réponse ! La bonne traduction était: {correct_translation}")
                 player['current_word_index'] += 1
+                st.session_state.button_clicked = "valider"
                 game_sessions[game['game_id']] = game
         
         # Colonnes pour le bouton passer
@@ -398,9 +372,21 @@ def display_game_interface(game, player_id, dico):
                 with col4:
                     st.info(f"Le mot '{current_word}' signifiait: {dico[current_word]['traduction']}")
                 player['current_word_index'] += 1
+                st.session_state.button_clicked = "passer"
                 game_sessions[game['game_id']] = game
+
+        # Enlever les messages en fonction de l'action
+        if st.session_state.button_clicked == "valider":
+            col4.empty()  # Enlève le message de "Passer"
         
-def display_game_over(player, opponent, is_host):
+        if st.session_state.button_clicked == "passer":
+            col2.empty()  # Enlève le message de validation
+        
+    time.sleep(0.1)  # Petit délai pour contrôler les rafraîchissements
+    st.rerun()
+
+    
+def display_game_over(player, opponent):
     """Affiche l'écran de fin de partie"""
     st.empty()  # Nettoyer l'interface précédente
     
@@ -436,6 +422,12 @@ def display_game_over(player, opponent, is_host):
             del st.session_state.player_id
         if 'game_id' in st.session_state:
             del st.session_state.game_id
+        if 'game_over' in st.session_state:  # <- AJOUTER CETTE LIGNE
+            del st.session_state.game_over   # <- AJOUTER CETTE LIGNE
+        if 'player_final' in st.session_state:  # <- AJOUTER CETTE LIGNE
+            del st.session_state.player_final   # <- AJOUTER CETTE LIGNE
+        if 'opponent_final' in st.session_state:  # <- AJOUTER CETTE LIGNE
+            del st.session_state.opponent_final   # <- AJOUTER CETTE LIGNE
         # Retirer le paramètre game_over de l'URL
         st.query_params.clear()
         st.rerun()
@@ -464,38 +456,6 @@ def join_existing_game():
             st.rerun()
         else:
             st.error("Partie non trouvée ou complète!")
-
-def create_countdown_timer2(duration=30):
-    """Crée un compte à rebours en temps réel"""
-    timer_html = f"""
-        <div style="text-align: center;">
-            <div style="font-size: 48px; font-weight: bold;" id="countdown">30</div>
-            <div style="font-size: 18px;">secondes avant le début de la partie</div>
-        </div>
-
-        <script>
-            var countdownElement = document.getElementById('countdown');
-            var timeLeft = {duration};
-            
-            function updateCountdown() {{
-                countdownElement.textContent = timeLeft;
-                if (timeLeft <= 0) {{
-                    // Envoyer un message à Streamlit pour recharger la page
-                    window.parent.postMessage({{type: 'streamlit:componentReady'}}, '*');
-                    clearInterval(countdownInterval);
-                    window.location.reload();
-                }}
-                timeLeft -= 1;
-            }}
-            
-            // Mettre à jour chaque seconde
-            var countdownInterval = setInterval(updateCountdown, 1000);
-            
-            // Démarrer immédiatement
-            updateCountdown();
-        </script>
-    """
-    html(timer_html, height=150)
 
 # Interface principale pour le mode multijoueur
 
@@ -736,7 +696,13 @@ if option == "Solo":
 
 # Mode multijoueur : initialisation de la partie
 elif option == "Multijoueur":
-    multiplayer_interface()
+    # Vérifier si le jeu est terminé avant d'afficher l'interface
+    if 'game_over' in st.session_state and st.session_state.game_over:
+        # Afficher l'écran de fin
+        display_game_over(st.session_state.player_final, st.session_state.opponent_final)
+    else:
+        # Afficher l'interface normale du multijoueur
+        multiplayer_interface()
     
 
 # Styles CSS personnalisés
